@@ -6,6 +6,8 @@ import Logo
 import argparse
 
 # Getting the name of the repository.
+
+
 def getting_header(soup_text):
     title = soup_text.title.get_text()
 
@@ -45,11 +47,11 @@ def verify_url(page_data):
 def get_latest_commit(repo_name, username):
     email = ""
     commit_data = requests.get(
-                "https://github.com"
-                "/{}/{}/commits?author={}".format(
-                                                 username,
-                                                 repo_name,
-                                                 username)).text
+        "https://github.com"
+        "/{}/{}/commits?author={}".format(
+            username,
+            repo_name,
+            username)).text
     soup = BeautifulSoup(commit_data, "lxml")
     a_tags = soup.findAll("a")
     for a_tag in a_tags:
@@ -58,7 +60,7 @@ def get_latest_commit(repo_name, username):
             label = str(a_tag.get("aria-label"))
             if "Merge" not in label and label != "None":
                 patch_data = requests.get("https://github.com{}{}".format(
-                            URL, ".patch")).text
+                    URL, ".patch")).text
                 try:
                     start = patch_data.index("<")
                     stop = patch_data.index(">")
@@ -72,7 +74,7 @@ def get_latest_commit(repo_name, username):
         return "Not enough information."
 
 
-def email(repository_link,ver,save):
+def email(repository_link, ver, save):
     try:
         import data
     except ImportError:
@@ -102,58 +104,36 @@ def email(repository_link,ver,save):
     colors.success("Repository Title : " + title, verbose)
     colors.process("Doxing started ...\n", verbose)
     stargazer_link = repository_link + "/stargazers"
-    while (stargazer_link is not None):
-        stargazer_html = requests.get(stargazer_link).text
-        soup2 = BeautifulSoup(stargazer_html, "lxml")
-        a_next = soup2.findAll("a")
-        for a in a_next:
-            if a.get_text() == "Next":
-                stargazer_link = a.get('href')
-                break
-            else:
-                stargazer_link = None
-        follow_names = soup2.findAll("h3", {"class": "follow-list-name"})
-        for name in follow_names:
-            a_tag = name.findAll("a")
-            username = a_tag[0].get("href")
-            data.username_list.append(username[1:])
-    count = 1
-    pos = 0
-    while(count <= len(data.username_list)):
-        repo_data = requests.get(
-            "https://github.com/{}?tab=repositories&type=source"
-            .format(data.username_list[pos])).text
-        repo_soup = BeautifulSoup(repo_data, "lxml")
-        a_tags = repo_soup.findAll("a")
-        repositories_list = []
-        for a_tag in a_tags:
-            if a_tag.get("itemprop") == "name codeRepository":
-                repositories_list.append(a_tag.get_text().strip())
-        if len(repositories_list) > 0:
-            email = get_latest_commit(
-                    repositories_list[0],
-                    data.username_list[pos])  # Getting stargazer's email
-            data.email_list.append(str(email))
-        else:
-            data.email_list.append("Not enough information.")
-        count += 1
-        pos += 1
-
-    # Printing or saving the emails
-    print(colors.red + "{0}".format("-") * 75, colors.green, end="\n\n")
-    save_data = False
-    for arg in sys.argv[1:]:
-        if arg == '-s' or arg == '--save':
-            save_data = True
-            save_info(dat='emails')
-    if save_data is False:
-        for e in range(len(data.email_list)):
-            print(colors.white)
-            print(data.username_list[e], (30-len(data.username_list[e]))*' ',
-                  colors.green, '::',
-                  colors.white, data.email_list[e])
-    print("\n", colors.green + "{0}".format("-") * 75,
-          colors.green, end="\n\n")
+    with open(save, 'w+') as f:
+        while (stargazer_link is not None):
+            stargazer_html = requests.get(stargazer_link).text
+            soup2 = BeautifulSoup(stargazer_html, "lxml")
+            a_next = soup2.findAll("a")
+            for a in a_next:
+                if a.get_text() == "Next":
+                    stargazer_link = a.get('href')
+                    break
+                else:
+                    stargazer_link = None
+            follow_names = soup2.findAll("h3", {"class": "follow-list-name"})
+            for name in follow_names:
+                a_tag = name.findAll("a")
+                username = a_tag[0].get("href")[1:]
+                repo_data = requests.get(
+                    "https://github.com/{}?tab=repositories&type=source"
+                    .format(username)).text
+                repo_soup = BeautifulSoup(repo_data, "lxml")
+                a_tags = repo_soup.findAll("a")
+                repositories_list = []
+                for a_tag in a_tags:
+                    if a_tag.get("itemprop") == "name codeRepository":
+                        repositories_list.append(a_tag.get_text().strip())
+                if len(repositories_list) > 0:
+                    email = get_latest_commit(
+                        repositories_list[0],
+                        username)  # Getting stargazer's email
+                    f.write(str(email) + '\n')
+                    f.flush()
 
 
 def save_info(dat='stardox'):
@@ -212,6 +192,7 @@ def stardox(repo_link, ver, save):
         verbose = ver
         try:
             # Getting HTML page of repository
+            print(repository_link)
             html = requests.get(repository_link, timeout=8).text
         except (requests.exceptions.RequestException,
                 requests.exceptions.HTTPError):
@@ -282,8 +263,8 @@ def stardox(repo_link, ver, save):
             user_html = requests.get(starer_url).text
             soup3 = BeautifulSoup(user_html, "lxml")
             repo_data = requests.get(
-                    "https://github.com/{}?tab=repositories&type=source"
-                    .format(data.username_list[pos])).text
+                "https://github.com/{}?tab=repositories&type=source"
+                .format(data.username_list[pos])).text
             repo_soup = BeautifulSoup(repo_data, "lxml")
             a_tags = repo_soup.findAll("a")
             repositories_list = []
@@ -292,8 +273,8 @@ def stardox(repo_link, ver, save):
                     repositories_list.append(a_tag.get_text().strip())
             if len(repositories_list) > 0:
                 email = get_latest_commit(
-                        repositories_list[0],
-                        data.username_list[pos])  # Getting stargazer's email
+                    repositories_list[0],
+                    data.username_list[pos])  # Getting stargazer's email
                 data.email_list.append(str(email))
             else:
                 data.email_list.append("Not enough information.")
@@ -370,17 +351,16 @@ if __name__ == '__main__':
         issave = args.save
         isemail = args.email
 
-
         if args.rURL == False:
             repository_link = input(
-                        "\033[37mEnter the repository address :: \x1b[0m")
+                "\033[37mEnter the repository address :: \x1b[0m")
             print(repository_link)
 
         repository_link = format_url(repository_link)
         if isemail:
-            email(repository_link,verbose,issave)
+            email(repository_link, verbose, issave)
         else:
-            stardox(repository_link,verbose,issave)
+            stardox(repository_link, verbose, issave)
 
     except KeyboardInterrupt:
         print("\n\nYou're Great..!\nThanks for using :)")
